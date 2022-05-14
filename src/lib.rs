@@ -1,9 +1,35 @@
+#![feature(vec_into_raw_parts)]
+
 use nalgebra::{dmatrix, DMatrix};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::collections::HashMap;
 
-pub fn decipher_bytes(mut contenidos: Vec<u8>) -> Vec<u8> {
+#[repr(C)]
+pub struct DynArray {
+    array: *mut libc::uint8_t,
+    length: libc::size_t,
+}
+
+#[no_mangle]
+pub extern "C" fn rust_free(array: DynArray) {
+    if !array.array.is_null() {
+        unsafe {
+            Box::from_raw(array.array);
+        }
+    }
+}
+
+/// # Safety
+///
+/// This function should not be called before the horsemen are ready.
+#[no_mangle]
+pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
+    let contenidos = {
+        assert!(!array.is_null());
+        Vec::from_raw_parts(array, size as usize, size as usize)
+    };
+
     let mut map: HashMap<u8, u8> = HashMap::new();
 
     if contenidos[0..0x4] != [66u8, 60u8, 10u8, 255u8] {
@@ -48,13 +74,29 @@ pub fn decipher_bytes(mut contenidos: Vec<u8>) -> Vec<u8> {
     let mut contenidos = contenidos[k..].to_vec();
 
     for i_byte in 0..contenidos.len() {
-        contenidos[i_byte] = *map.get(&contenidos[i_byte]).unwrap();
+        contenidos[i_byte] = map.get(&contenidos[i_byte]).unwrap().clone();
     }
 
-    contenidos
+    let result = DynArray {
+        array: contenidos.as_mut_ptr(),
+        length: contenidos.len() as _,
+    };
+
+    std::mem::forget(contenidos);
+
+    result
 }
 
-pub fn cypher_bytes(mut contenidos: Vec<u8>) -> Vec<u8> {
+/// # Safety
+///
+/// This function should not be called before the horsemen are ready.
+#[no_mangle]
+pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
+    let mut contenidos = {
+        assert!(!array.is_null());
+        Vec::from_raw_parts(array, size as usize, size as usize)
+    };
+
     let mut rng = rand::thread_rng();
 
     let mut map: HashMap<u8, u8> = HashMap::new();
@@ -98,7 +140,7 @@ pub fn cypher_bytes(mut contenidos: Vec<u8>) -> Vec<u8> {
 
     for i in 0..8 {
         for j in 0..32 {
-            bytes_final_to_write.push(cyphered_bytes[(i, j)] as u8);
+            bytes_final_to_write.push(cyphered_bytes[(i, j)].clone() as u8);
         }
     }
 
@@ -107,7 +149,14 @@ pub fn cypher_bytes(mut contenidos: Vec<u8>) -> Vec<u8> {
     resulting_bytes.append(&mut bytes_final_to_write);
     resulting_bytes.append(&mut contenidos);
 
-    resulting_bytes
+    let result = DynArray {
+        array: resulting_bytes.as_mut_ptr(),
+        length: resulting_bytes.len() as _,
+    };
+
+    std::mem::forget(resulting_bytes);
+
+    result
 }
 
 pub fn met1_armar_matriz(rng: &mut ThreadRng) -> DMatrix<f32> {
@@ -161,17 +210,17 @@ mod tests {
 
     #[test]
     fn test() {
-        let bytes: Vec<u8> = vec![1, 234, 56, 34, 75];
-        let bytes_o = &bytes.clone();
+        /*let bytes: Vec<u8> = vec![1, 234, 56, 34, 75];
+                let bytes_o = &bytes.clone();
 
-        let cy = cypher_bytes(bytes);
+                let cy = cypher_bytes(bytes);
 
-        println!("{:?}", cy);
+                println!("{:?}", cy);
 
-        let deci = decipher_bytes(cy);
+                let deci = decipher_bytes(cy);
 
-        println!("{:?}", deci);
+                println!("{:?}", deci);
 
-        println!("{:?}", bytes_o);
+        */
     }
 }
