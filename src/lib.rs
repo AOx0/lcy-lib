@@ -9,18 +9,7 @@ pub struct DynArray {
     length: libc::size_t,
 }
 
-#[no_mangle]
-pub extern "C" fn rust_free(array: DynArray) {
-    if !array.array.is_null() {
-        unsafe {
-            Box::from_raw(array.array);
-        }
-    }
-}
-
 /// # Safety
-///
-/// This function should not be called before the horsemen are ready.
 #[no_mangle]
 pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
     let contenidos = {
@@ -72,7 +61,7 @@ pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
     let mut contenidos = contenidos[k..].to_vec();
 
     for i_byte in 0..contenidos.len() {
-        contenidos[i_byte] = map.get(&contenidos[i_byte]).unwrap().clone();
+        contenidos[i_byte] = *map.get(&contenidos[i_byte]).unwrap();
     }
 
     let result = DynArray {
@@ -86,8 +75,6 @@ pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
 }
 
 /// # Safety
-///
-/// This function should not be called before the horsemen are ready.
 #[no_mangle]
 pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
     let contenidos_r = {
@@ -140,7 +127,7 @@ pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
 
     for i in 0..8 {
         for j in 0..32 {
-            bytes_final_to_write.push(cyphered_bytes[(i, j)].clone() as u8);
+            bytes_final_to_write.push(cyphered_bytes[(i, j)] as u8);
         }
     }
 
@@ -205,26 +192,4 @@ pub fn craft_bytes_matrix() -> DMatrix<f32> {
         }
     }
     bytes
-}
-
-// library tests
-#[cfg(test)]
-mod tests {
-    use crate::{cypher_bytes, decipher_bytes};
-
-    #[test]
-    fn test() {
-        /*let bytes: Vec<u8> = vec![1, 234, 56, 34, 75];
-                let bytes_o = &bytes.clone();
-
-                let cy = cypher_bytes(bytes);
-
-                println!("{:?}", cy);
-
-                let deci = decipher_bytes(cy);
-
-                println!("{:?}", deci);
-
-        */
-    }
 }

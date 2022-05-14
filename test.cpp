@@ -12,8 +12,6 @@ extern "C" DynArray cypher_bytes(uint8_t* numbers, uint32_t length);
 
 extern "C" DynArray decipher_bytes(uint8_t* numbers, uint32_t length);
 
-extern "C" void rust_free(DynArray);
-
 int main() {
   string ok;
 
