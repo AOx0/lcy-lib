@@ -47,7 +47,6 @@ int main() {
 
   cin >> ok;
 
-  rust_free(result);
-  rust_free(result2);
 
+  return 0;
 }

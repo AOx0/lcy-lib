@@ -1,5 +1,3 @@
-#![feature(vec_into_raw_parts)]
-
 use nalgebra::{dmatrix, DMatrix};
 use rand::rngs::ThreadRng;
 use rand::Rng;
@@ -7,7 +5,7 @@ use std::collections::HashMap;
 
 #[repr(C)]
 pub struct DynArray {
-    array: *mut libc::uint8_t,
+    array: *mut u8,
     length: libc::size_t,
 }
 
@@ -27,7 +25,7 @@ pub extern "C" fn rust_free(array: DynArray) {
 pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
     let contenidos = {
         assert!(!array.is_null());
-        Vec::from_raw_parts(array, size as usize, size as usize)
+        std::slice::from_raw_parts(array, size as usize)
     };
 
     let mut map: HashMap<u8, u8> = HashMap::new();
@@ -92,10 +90,12 @@ pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
 /// This function should not be called before the horsemen are ready.
 #[no_mangle]
 pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
-    let mut contenidos = {
+    let contenidos_r = {
         assert!(!array.is_null());
-        Vec::from_raw_parts(array, size as usize, size as usize)
+        std::slice::from_raw_parts(array, size as usize)
     };
+
+    let mut contenidos = contenidos_r.to_vec();
 
     let mut rng = rand::thread_rng();
 
@@ -148,6 +148,10 @@ pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
     resulting_bytes.append(&mut inv_key_to_write);
     resulting_bytes.append(&mut bytes_final_to_write);
     resulting_bytes.append(&mut contenidos);
+
+    drop(map);
+    drop(contenidos);
+    drop(transformation_inverse);
 
     let result = DynArray {
         array: resulting_bytes.as_mut_ptr(),
