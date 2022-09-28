@@ -28,6 +28,30 @@ pub unsafe extern "C" fn decipher_bytes(array: *mut u8, size: u32) -> DynArray {
 
     let contenidos = &contenidos[0x4..];
 
+    let mut expanded = vec![];
+    for i in 0..256 {
+        let str_form = format!("{:#010b}", contenidos[i])
+          .replace("0b", "")
+          .chars()
+          .collect::<Vec<char>>()
+          ;
+
+        let mut tmp = [0u8; 4];
+        let mut numbers: Vec<u8> = str_form.
+          into_iter()
+          .map(|v| {
+              tmp = [0,0,0,0];
+              v.encode_utf8(&mut tmp).parse().unwrap()
+          })
+          .collect();
+
+        expanded.append(&mut numbers);
+    }
+
+    expanded.extend_from_slice(&contenidos[256..]);
+
+    let contenidos = expanded;
+
     let mut k = 0;
     for i in 0..32 {
         for j in 0..32 {
@@ -125,6 +149,18 @@ pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
         }
     }
 
+    let mut inv_key_to_write_2 = vec![];
+    let mut temp = String::new();
+    for (mut num, &val) in inv_key_to_write.iter().enumerate() {
+        num += 1;
+        temp += if val == 1 { "1" } else { "0" };
+
+        if num % 8 == 0 {
+            inv_key_to_write_2.push(u8::from_str_radix(&temp, 2).unwrap());
+            temp.clear();
+        }
+    }
+
     for i in 0..8 {
         for j in 0..32 {
             bytes_final_to_write.push(cyphered_bytes[(i, j)] as u8);
@@ -132,7 +168,7 @@ pub unsafe extern "C" fn cypher_bytes(array: *mut u8, size: u32) -> DynArray {
     }
 
     resulting_bytes.append(&mut vec![66u8, 60u8, 10u8, 255u8]);
-    resulting_bytes.append(&mut inv_key_to_write);
+    resulting_bytes.append(&mut inv_key_to_write_2);
     resulting_bytes.append(&mut bytes_final_to_write);
     resulting_bytes.append(&mut contenidos);
 

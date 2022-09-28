@@ -9,3 +9,5 @@ Cargo.lock
 a.out
 
 test
+
+cmake_build/
